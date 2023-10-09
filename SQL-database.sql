@@ -52,6 +52,20 @@ create table Observation(
     foreign key (incidentNr) references Incident(Nr)
 )engine= innodb;
 
+create table ObservationsLogg(
+    operation varchar(10),
+    användarnamn varchar(32),
+    optime datetime,
+    ID int unsigned auto_increment primary key,
+    observationsID char(8),
+    säkerhet char(3),
+    datum datetime,
+    grad char(1),
+    incidentNamn varchar(16),
+    incidentNr char(4)
+
+)engine=innodb;
+
 /* ----Merge ___*/ 
 
 create table alienrymdskepp(
@@ -84,8 +98,7 @@ create table MediaLogg(
     ID smallint unsigned auto_increment,
     operation varchar(10),
     användarnamn varchar(32),
-    nyaNamn varchar(10),
-    gammalNamn varchar(10),
+    Namn varchar(10),
     optime datetime,
     primary key (ID)
 )engine=innodb;
@@ -151,14 +164,14 @@ end //
  /* Trigger */
 create trigger MediaTriggerInsert after insert on Media
     for each row begin
-    insert into MediaLogg(operation, användarnamn, nyaNamn,gammalNamn, optime)
-        values ('Insert',user(),new.namn,'-',now());
+    insert into MediaLogg(operation, användarnamn, Namn, optime)
+        values ('Insert',user(),new.namn,now());
 end //
 
-create trigger MediaTriggerDelete after update on Media
+create trigger ObservationsDelete after delete on Observation
     for each row begin
-    insert into MediaLogg(operation, användarnamn, nyaNamn,gammalNamn, optime)
-        values ('Update',user(),new.namn,old.namn,now());
+    insert into ObservationsLogg(operation, användarnamn, optime, observationsID,säkerhet,datum, grad, incidentNamn, incidentNr)
+        values ('Delete',user(),now(), old.ID, old.säkerhet, old.datum,old.grad,old.incidentNamn, old.incidentNr);
 end //
 
 CREATE TRIGGER UpdateAlienrymdskepp
@@ -185,6 +198,27 @@ delimiter ;
  /* Rättigheter */
 drop user Gruppledare;
 create user Gruppledare identified by 'Lösenord';
+grant select on d22hanol.PåbörjadOperation to Gruppledare;
+grant select on d22hanol.SlutfördOperation to Gruppledare;
 grant update on d22hanol.PåbörjadOperation to Gruppledare;
 grant update on d22hanol.SlutfördOperation to Gruppledare;
+grant select on d22hanol.BådaOperationer to Gruppledare;
+
+grant execute on procedure d22hanol.hämtaallapersoner to Gruppledare;
+
+grant insert on d22hanol.Media to Gruppledare;
+grant select on d22hanol.Observation to Gruppledare;
+grant delete on d22hanol.Observation to Gruppledare;
+
+insert into Incident(namn, nr )
+values ('inceldent',1);
+
+insert into Observation(id, säkerhet, datum, grad, incidentnamn, incidentnr)
+values ('båten',null,null,null,'inceldent',1),('example',10,now(),1,'inceldent',1);
+
+select * from MediaLogg;
+
+select * from ObservationsLogg;
+
+
 
