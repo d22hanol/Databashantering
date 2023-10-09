@@ -6,20 +6,23 @@ create table Incident(
     namn varchar(16),
     nr char(4),
     plats varchar(16),
-    primary key (namn,nr)
+    primary key (namn,nr),
+    unique key idx_nr (nr),
+    unique key idx_namn (namn)
 )engine=innodb;
-/* -----Coding____*/
 
+/* -----Coding-----*/
+/* ----- vertical split ---*/
 
 create table PåbörjadOperation(
   kodnamnTyp varchar(32),
   kodnamnsKod int unique auto_increment,
-  startdatum date,
-  incidentNamn varchar(16),
-  incidentNr char(4),
-  foreign key (incidentNamn) references Incident(namn),
-  foreign key (incidentNr) references Incident(nr),
-  primary key (kodnamnTyp,startdatum,incidentNr,incidentNamn)
+  startdatum date not null ,
+  incident_Namn varchar(16),
+  incident_Nr char(4),
+  foreign key (incident_Namn) references Incident(namn),
+  foreign key (incident_Nr) references Incident(nr),
+  primary key (kodnamnTyp,startdatum,incident_Nr,incident_Namn)
 )engine =innodb;
 
 
@@ -64,27 +67,10 @@ create table alienrymdskepp(
     rörelse varchar(25),
     observation char(8),
     foreign key (observation) references Observation(ID),
-    primary key (observation),
-    check ( if (alien = 1,
-        rymdskepp = 0,
-        form = NULL,
-        lampor = NULL,
-        färg = NULL,
-        rörelse = NULL)),
-    check ( if ( rymdskepp = 1,
-        alien = 0,
-        Hudfärg = NULL,
-        kläder = NULL,
-        typ = NULL,
-        storlek = NULL))
-)engine=innodb;
-
-create table rymdskepp(
-
-    observation char(8),
-    foreign key (observation) references Observation(id),
     primary key (observation)
 )engine=innodb;
+
+/*---- Horizontal split ---*/
 
 create table Media(
     namn varchar(10),
@@ -105,7 +91,7 @@ create table MediaLogg(
 )engine=innodb;
 
 create table MediaKommentar(
-    kommentar varchar(128),
+    kommentar varchar(80),
     namn varchar(10),
     observation char(8),
     foreign key (observation) references  Media(observation),
@@ -115,6 +101,7 @@ create table MediaKommentar(
 
 create table Person(
     ID char(13),
+    check (ID rlike '[0-9][0-9]-[0-9][0-9]-[0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9]'),
     namn varchar(25),
     kodnamn char(2),
     primary key (ID)
@@ -131,9 +118,10 @@ create table PersonPåObservation(
 create index Observationsdatum on Observation(datum asc) using btree;
 
 create index PåbörjadOperationsdatum on PåbörjadOperation(startdatum asc) using btree;
+
 /* View */
 Create VIEW BådaOperationer as
-select kodnamnTyp,kodnamnsKod, startdatum, Null as "slutdatum", Null as "successRate", incidentNamn, incidentNr
+select kodnamnTyp,kodnamnsKod, startdatum, Null as "slutdatum", Null as "successRate", incident_Namn, incident_Nr
 from PåbörjadOperation
 union
 select kodnamnTyp,kodnamnskod, startdatum, slutdatum, successRate, incidentNamn, incidentNr
@@ -173,8 +161,29 @@ create trigger MediaTriggerDelete after update on Media
         values ('Update',user(),new.namn,old.namn,now());
 end //
 
+CREATE TRIGGER UpdateAlienrymdskepp
+BEFORE INSERT ON alienrymdskepp
+FOR EACH ROW
+BEGIN
+    IF NEW.alien = 1 THEN
+        SET NEW.rymdskepp = 0;
+        SET NEW.form = NULL;
+        SET NEW.lampor = NULL;
+        SET NEW.färg = NULL;
+        SET NEW.rörelse = NULL;
+    END IF;
+    if NEW.rymdskepp = 1 THEN
+        set new.alien = 0;
+        set new.Hudfärg = NULL;
+        set new.kläder = NULL;
+        set new.typ = NULL;
+        set new.storlek = NULL;
+    END IF;
+END //
+
 delimiter ;
  /* Rättigheter */
+drop user Gruppledare;
 create user Gruppledare identified by 'Lösenord';
 grant update on d22hanol.PåbörjadOperation to Gruppledare;
 grant update on d22hanol.SlutfördOperation to Gruppledare;
